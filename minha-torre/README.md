@@ -10,7 +10,7 @@ A **Torre de Controle (`minha-torre`)** conecta a diretoria e o PMO diretamente 
 
 1. **Monitoramento da Carteira & Projetos em Risco**:
    - Cards executivos em tempo real (Projetos em andamento, Projetos em risco/críticos, *Projetos Melancia*, Estouro total previsto em R$ e Valor total da carteira).
-   - Tabela interativa de projetos ordenada por criticidade (`crítico` $\rightarrow$ `atenção` $\rightarrow$ `ok`), exibindo `SPI`, `CPI`, `EAC`, atraso projetado em dias, comparativo **Farol do Gerente vs. Farol Calculado**, causa de bloqueio mais frequente extraída por IA (`ai_classify`) e dias de impacto acumulados.
+   - Tabela interativa de projetos ordenada por criticidade (`crítico` → `atenção` → `ok`), exibindo `SPI`, `CPI`, `EAC`, atraso projetado em dias, comparativo **Farol do Gerente vs. Farol Calculado**, causa de bloqueio mais frequente extraída por IA (`ai_classify`) e dias de impacto acumulados.
 2. **Radar Preditivo de Estouro em 30 Dias (MLflow `@prod`)**:
    - Consumo direto da tabela `lakehouse_vertice.gold.score_estouro_30d` via endpoint `/api/score-estouro`, destacando a probabilidade (`prob_estouro_30d`), a faixa de risco (`alto`, `medio`, `baixo`) e os **principais fatores explicativos em português** gerados pelo pipeline de Machine Learning.
 3. **Simulador de Realocação de Squad & Agente Analítico Genie**:

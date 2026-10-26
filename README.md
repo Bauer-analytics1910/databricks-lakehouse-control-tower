@@ -33,35 +33,33 @@ A plataforma foi projetada seguindo os padrões de **Staff Analytics Engineering
 ```mermaid
 flowchart LR
     subgraph Fontes["Fontes de Dados"]
-        API["BrasilAPI REST<br/>(Feriados Nacionais)"]
-        S3["Data Lake S3 / Supabase<br/>(ERP, PMO, Excel, ClickUp, MS Project)"]
+        API["BrasilAPI REST - Feriados"]
+        S3["Data Lake S3 - ERP e PMO"]
     end
 
-    subgraph UC["Unity Catalog · lakehouse_vertice"]
-        subgraph Bronze["Schema: bronze"]
-            B1["9 Tabelas Brutas + Feriados<br/>(Conferência Seed 42)"]
-        end
+    subgraph Bronze["Camada Bronze"]
+        B1["9 Tabelas Brutas + Feriados"]
+    end
 
-        subgraph Silver["Schema: silver (Lakeflow DLT)"]
-            S1["projetos · tarefas (3-em-1)<br/>status_semanal · custos<br/>colaboradores · entregas_fornecedor"]
-        end
+    subgraph Silver["Camada Silver - Lakeflow DLT"]
+        S1["projetos, tarefas 3-em-1, custos, colaboradores"]
+    end
 
-        subgraph Gold["Schema: gold"]
-            G1["fato_projeto_semana<br/>projeto_situacao_atual<br/>utilizacao_pessoa_semana"]
-            G2["status_estruturado<br/>(ai_classify + ai_extract)"]
-            G3["mv_projetos<br/>(Unity Catalog Metric View)"]
-            G4["score_estouro_30d<br/>(Predição ML + Fatores)"]
-        end
+    subgraph Gold["Camada Gold e Semantica"]
+        G1["fato_projeto_semana e projeto_situacao_atual"]
+        G2["status_estruturado - AI Functions"]
+        G3["mv_projetos - Unity Catalog Metric View"]
+        G4["score_estouro_30d - Predicao ML"]
+    end
 
-        subgraph ML["Schema: ml (MLflow @prod)"]
-            M1["features_projeto_semana<br/>modelo_estouro_30d<br/>modelo_metricas"]
-        end
+    subgraph ML["Laboratorio ML - MLflow"]
+        M1["features_projeto_semana e modelo_estouro_30d"]
     end
 
     subgraph Consumo["Produtos de Dados Executivos"]
-        D1["Dashboard Executivo AI/BI<br/>(Lakeview)"]
-        D2["Torre de Controle<br/>(Databricks App · React 19)"]
-        D3["Agente Analítico Genie<br/>(OAuth OBO · 85% Benchmark)"]
+        D1["Dashboard Executivo AI/BI"]
+        D2["Torre de Controle - Databricks App"]
+        D3["Agente Analitico Genie"]
     end
 
     API --> B1
@@ -81,7 +79,7 @@ flowchart LR
     G4 --> D3
 ```
 
-### Fluxo Medalhão Detalhado (`Bronze` $\rightarrow$ `Silver` $\rightarrow$ `Gold`)
+### Fluxo Medalhão Detalhado (`Bronze` → `Silver` → `Gold`)
 
 | Camada | Objetos Principais | Responsabilidade Técnica e Regras de Engenharia |
 | :--- | :--- | :--- |
@@ -152,7 +150,7 @@ A tabela `lakehouse_vertice.ml.features_projeto_semana` calcula **24 variáveis 
 - **Sinais Extraídos por IA dos Relatórios Semanais**: Frequência nas últimas 4 semanas de bloqueios classificados como `status_freeze_4s`, `status_falta_sre_4s`, `status_fornecedor_4s`, `status_rotatividade_4s`, `status_escopo_4s`, `status_retrabalho_4s` e `status_com_bloqueio_4s`.
 
 ### 2. Treinamento Temporal, Baselines e Registro no Unity Catalog ([`src/ml/02-modelo.py`](src/ml/02-modelo.py))
-- **Abordagem Híbrida Regressão $\rightarrow$ Probabilidade**: Em vez de um classificador binário caixa-preta, um `HistGradientBoostingRegressor` prevê **quanto o pior índice (`min(SPI, CPI)`) cairá nas próximas 4 semanas**. A probabilidade de estouro $P(\text{índice}_{t+4} < 0,90)$ é derivada analiticamente via distribuição normal calibrada pelo desvio padrão residual ($\sigma$) medido no conjunto de teste temporal (`semana >= 2026-04-03`, com *gap* de 4 semanas após o corte de treino em `2026-03-06`).
+- **Abordagem Híbrida Regressão → Probabilidade**: Em vez de um classificador binário caixa-preta, um `HistGradientBoostingRegressor` prevê **quanto o pior índice (`min(SPI, CPI)`) cairá nas próximas 4 semanas**. A probabilidade de estouro `P(pior_indice_30d < 0,90)` é derivada analiticamente via distribuição normal calibrada pelo desvio padrão residual (`sigma`) medido no conjunto de teste temporal (`semana >= 2026-04-03`, com *gap* de 4 semanas após o corte de treino em `2026-03-06`).
 - **4 Travas Automatizadas de Qualidade do Modelo (`assert`)**: Antes de promover qualquer versão para produção, o notebook exige:
   1. `auc_modelo >= 0.75` (piso mínimo de discriminação do PRD);
   2. `auc_modelo < 0.98` (proteção automática contra vazamento de dados / *target leakage*);
@@ -172,7 +170,7 @@ Carrega `models:/lakehouse_vertice.ml.modelo_estouro_30d@prod`, pontua todos os 
 ### 6.1. Dashboard Executivo AI/BI (Lakeview)
 Construído declarativamente e versionado em [`resources/dashboard-portfolio.lvdash.json`](resources/dashboard-portfolio.lvdash.json) (gerado via [`scripts/gerar_dashboard.py`](scripts/gerar_dashboard.py)), entrega à diretoria:
 - **Cards Executivos de KPIs**: Carteira ativa, total de projetos em risco/críticos, projetos melancia, estouro total previsto e margem projetada.
-- **Matriz de Dispersão (`SPI` $\times$ `CPI`)**: Identificação visual imediata de projetos atrasados e acima do custo por segmento e ferramenta.
+- **Matriz de Dispersão (`SPI` × `CPI`)**: Identificação visual imediata de projetos atrasados e acima do custo por segmento e ferramenta.
 - **Matriz de Risco e Decomposição de Sobrecusto**: Ranking detalhado por gerente de projeto, cliente e causas de bloqueio.
 
 ![Dashboard Executivo AI/BI no Databricks](docs/assets/03-dashboard-executivo.png)
