@@ -1,7 +1,7 @@
 [project]
-name = "verticeaovivo"
+name = "databricks-lakehouse-control-tower"
 version = "0.0.1"
-authors = [{ name = "gabriellucasbauer@gmail.com" }]
+authors = [{ name = "Gabriel Bauer" }]
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # Any dependencies for jobs and pipelines in this project can be added here

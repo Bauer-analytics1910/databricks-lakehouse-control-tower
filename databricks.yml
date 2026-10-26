@@ -2,7 +2,6 @@
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 bundle:
   name: verticeaovivo
-  uuid: 8d796bb9-0de4-4dac-96cb-0a7d383b6f47
 
 sync:
   exclude:
@@ -19,7 +18,7 @@ variables:
     default: lakehouse_vertice
   warehouse_id:
     description: SQL warehouse das sql_task (Serverless Starter Warehouse)
-    default: de6ef3f2722321c7
+    default: seu_warehouse_id
   s3_access_key_id:
     description: chave do data lake
   s3_secret_access_key:
@@ -34,13 +33,13 @@ targets:
     presets:
       trigger_pause_status: PAUSED
     workspace:
-      host: https://dbc-031d8335-2235.cloud.databricks.com
+      host: https://<seu-workspace>.cloud.databricks.com
   prod:
     mode: production
     workspace:
-      host: https://dbc-031d8335-2235.cloud.databricks.com
-      # We explicitly deploy to /Workspace/Users/gabriellucasbauer@gmail.com to make sure we only have a single copy.
-      root_path: /Workspace/Users/gabriellucasbauer@gmail.com/.bundle/${bundle.name}/${bundle.target}
+      host: https://<seu-workspace>.cloud.databricks.com
+      # Exemplo de deploy explícito para o workspace do usuário ou service principal
+      root_path: /Workspace/Users/<seu-usuario>@empresa.com/.bundle/${bundle.name}/${bundle.target}
     permissions:
-      - user_name: gabriellucasbauer@gmail.com
+      - user_name: <seu-usuario>@empresa.com
         level: CAN_MANAGE
