@@ -31,35 +31,35 @@ O **Projeto Farol (Lakehouse Control Tower)** resolve esses desafios unificando 
 A plataforma foi projetada seguindo os padrões de **Staff Analytics Engineering** no catálogo `lakehouse_vertice` do **Unity Catalog**, combinando **Lakeflow Spark Declarative Pipelines (Serverless + Photon)**, **Databricks AI Functions**, **MLflow** e **Databricks Asset Bundles (DABs)**.
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Fontes["Fontes de Dados"]
-        API["BrasilAPI REST - Feriados"]
-        S3["Data Lake S3 - ERP e PMO"]
+        API["BrasilAPI REST (Feriados Nacionais)"]
+        S3["Data Lake S3 (ERP, PMO, Excel, ClickUp, MS Project)"]
     end
 
-    subgraph Bronze["Camada Bronze"]
-        B1["9 Tabelas Brutas + Feriados"]
+    subgraph Bronze["Camada Bronze (lakehouse_vertice.bronze)"]
+        B1["9 Tabelas Brutas + Feriados (Conferência Seed 42)"]
     end
 
-    subgraph Silver["Camada Silver - Lakeflow DLT"]
-        S1["projetos, tarefas 3-em-1, custos, colaboradores"]
+    subgraph Silver["Camada Silver (Lakeflow Declarative Pipeline)"]
+        S1["projetos, tarefas (3-em-1), status_semanal, custos, colaboradores, fornecedores"]
     end
 
-    subgraph Gold["Camada Gold e Semantica"]
-        G1["fato_projeto_semana e projeto_situacao_atual"]
-        G2["status_estruturado - AI Functions"]
-        G3["mv_projetos - Unity Catalog Metric View"]
-        G4["score_estouro_30d - Predicao ML"]
+    subgraph Gold["Camada Gold e Semântica (lakehouse_vertice.gold)"]
+        G1["fato_projeto_semana, projeto_situacao_atual, utilizacao_pessoa_semana"]
+        G2["status_estruturado (ai_classify + ai_extract)"]
+        G3["mv_projetos (Unity Catalog Metric View)"]
+        G4["score_estouro_30d (Predição ML + Fatores)"]
     end
 
-    subgraph ML["Laboratorio ML - MLflow"]
-        M1["features_projeto_semana e modelo_estouro_30d"]
+    subgraph ML["Laboratório ML (lakehouse_vertice.ml)"]
+        M1["features_projeto_semana + modelo_estouro_30d (MLflow)"]
     end
 
     subgraph Consumo["Produtos de Dados Executivos"]
-        D1["Dashboard Executivo AI/BI"]
-        D2["Torre de Controle - Databricks App"]
-        D3["Agente Analitico Genie"]
+        D1["Dashboard Executivo AI/BI (Lakeview)"]
+        D2["Torre de Controle (Databricks App - React 19)"]
+        D3["Agente Analítico Genie (OAuth OBO - 85% Benchmark)"]
     end
 
     API --> B1
