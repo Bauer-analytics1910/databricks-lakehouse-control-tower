@@ -13,3 +13,5 @@ scratch/**
 **/.env
 **/.env.*
 !**/.env.example
+.vscode/
+instrução/
