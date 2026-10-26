@@ -1,0 +1,15 @@
+# Pipeline Lakeflow Spark Declarative Pipelines (SQL, serverless).
+# Silver = schema padrão do pipeline; Gold = lakehouse_vertice.gold.<tabela>.
+resources:
+  pipelines:
+    vertice_medalhao:
+      name: vertice_medalhao
+      catalog: ${var.catalog}
+      schema: silver
+      serverless: true
+      photon: true
+      libraries:
+        - glob:
+            include: ../src/silver/**
+        - glob:
+            include: ../src/gold/**

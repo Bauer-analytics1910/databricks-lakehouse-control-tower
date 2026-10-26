@@ -1,0 +1,262 @@
+{
+  "version": 2,
+  "config": {
+    "sample_questions": [
+      {
+        "id": "482b7c03984615d973f912ad2958c82f",
+        "question": [
+          "Quanto esse atraso vai me custar?"
+        ]
+      },
+      {
+        "id": "693b24382712fcd129bd5253d7d2ce0c",
+        "question": [
+          "O que vai dar errado no próximo mês?"
+        ]
+      },
+      {
+        "id": "94a946fb4de39670cebaac6c50a1c37f",
+        "question": [
+          "Quais projetos estão atrasados, e de quais clientes?"
+        ]
+      },
+      {
+        "id": "98735776a90fb7ef8f10797b0dad2179",
+        "question": [
+          "Qual a chance de o PRJ-024 estourar?"
+        ]
+      },
+      {
+        "id": "e71c76ed5c06d28d96f72c29c2b31679",
+        "question": [
+          "Tenho gente parada enquanto outro projeto pede gente?"
+        ]
+      }
+    ]
+  },
+  "data_sources": {
+    "tables": [
+      {
+        "identifier": "lakehouse_vertice.gold.fato_projeto_semana"
+      },
+      {
+        "identifier": "lakehouse_vertice.gold.projeto_situacao_atual",
+        "column_configs": [
+          {
+            "column_name": "cliente",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "farol_calculado",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "farol_do_gerente",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "ferramenta",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "segmento",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "situacao",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          }
+        ]
+      },
+      {
+        "identifier": "lakehouse_vertice.gold.score_estouro_30d",
+        "column_configs": [
+          {
+            "column_name": "faixa_risco",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          }
+        ]
+      },
+      {
+        "identifier": "lakehouse_vertice.gold.status_estruturado",
+        "column_configs": [
+          {
+            "column_name": "causa_bloqueio",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          }
+        ]
+      },
+      {
+        "identifier": "lakehouse_vertice.gold.utilizacao_pessoa_semana"
+      },
+      {
+        "identifier": "lakehouse_vertice.silver.entregas_fornecedor",
+        "column_configs": [
+          {
+            "column_name": "fornecedor",
+            "enable_entity_matching": true,
+            "enable_format_assistance": true
+          },
+          {
+            "column_name": "fornecedor_como_veio",
+            "exclude": true
+          }
+        ]
+      }
+    ],
+    "metric_views": [
+      {
+        "identifier": "lakehouse_vertice.gold.mv_projetos"
+      }
+    ]
+  },
+  "instructions": {
+    "example_question_sqls": [
+      {
+        "id": "5f043f7c73788d2ede2598cb81179f04",
+        "question": [
+          "Qual a chance de o PRJ-024 estourar?"
+        ],
+        "sql": [
+          "SELECT s.projeto_id, p.projeto, ROUND(s.prob_estouro_30d * 100, 1) AS prob_estouro_pct, s.faixa_risco, s.principais_fatores\nFROM lakehouse_vertice.gold.score_estouro_30d s\nJOIN lakehouse_vertice.gold.projeto_situacao_atual p USING (projeto_id)\nWHERE s.projeto_id = 'PRJ-024'\n  AND s.data_referencia = (SELECT MAX(data_referencia) FROM lakehouse_vertice.gold.score_estouro_30d)"
+        ]
+      },
+      {
+        "id": "83192057eb22f73f7526884e162e0b93",
+        "question": [
+          "Quais projetos estão atrasados, e de quais clientes?"
+        ],
+        "sql": [
+          "SELECT projeto, cliente, ROUND(spi, 2) AS spi, ROUND(cpi, 2) AS cpi, situacao\nFROM lakehouse_vertice.gold.projeto_situacao_atual\nWHERE status = 'em_andamento' AND spi < 0.9\nORDER BY spi ASC"
+        ]
+      },
+      {
+        "id": "a84f62e5ddb9e708542d7e0e9ab44b2a",
+        "question": [
+          "Quanto esse atraso vai me custar?"
+        ],
+        "sql": [
+          "SELECT projeto, cliente, orcamento, ROUND(eac, 2) AS eac, ROUND(estouro_previsto, 2) AS estouro_previsto, ROUND(margem_projetada, 2) AS margem_projetada\nFROM lakehouse_vertice.gold.projeto_situacao_atual\nWHERE status = 'em_andamento' AND estouro_previsto > 0\nORDER BY estouro_previsto DESC"
+        ]
+      },
+      {
+        "id": "b0c2157177a515d5e45f5862756e22c0",
+        "question": [
+          "O que vai dar errado no próximo mês?"
+        ],
+        "sql": [
+          "SELECT 'entregas_fornecedor_atraso' AS tipo_risco,\n       fornecedor AS entidade,\n       CONCAT('Entrega atrasada: prazo real ', prazo_real_dias, ' vs prometido ', prazo_prometido_dias) AS detalhe\nFROM lakehouse_vertice.silver.entregas_fornecedor\nWHERE em_atraso\nUNION ALL\nSELECT 'change_freeze_black_friday' AS tipo_risco,\n       projeto AS entidade,\n       'Projeto de e-commerce congelado entre 01/11/2026 e 10/01/2027' AS detalhe\nFROM lakehouse_vertice.gold.projeto_situacao_atual\nWHERE status = 'em_andamento' AND (LOWER(tipo_projeto) LIKE '%commerce%' OR LOWER(tipo_projeto) LIKE '%checkout%' OR LOWER(tipo_projeto) LIKE '%marketplace%')\nUNION ALL\nSELECT 'risco_estouro_score' AS tipo_risco,\n       p.projeto AS entidade,\n       CONCAT('P(estouro)=', ROUND(s.prob_estouro_30d * 100, 0), '%, fatores: ', s.principais_fatores) AS detalhe\nFROM lakehouse_vertice.gold.score_estouro_30d s\nJOIN lakehouse_vertice.gold.projeto_situacao_atual p USING (projeto_id)\nWHERE s.data_referencia = (SELECT MAX(data_referencia) FROM lakehouse_vertice.gold.score_estouro_30d)\n  AND p.situacao = 'ok' AND s.faixa_risco IN ('alto', 'medio')"
+        ]
+      },
+      {
+        "id": "e07590a95034a93fb20a8f3e64a5a23f",
+        "question": [
+          "Tenho gente parada enquanto outro projeto pede gente?"
+        ],
+        "sql": [
+          "WITH ociosos AS (\n  SELECT colaborador_id, papel, ROUND(SUM(horas_apontadas) / SUM(horas_disponiveis), 2) AS utilizacao\n  FROM lakehouse_vertice.gold.utilizacao_pessoa_semana\n  WHERE semana > DATE'2026-07-24'\n  GROUP BY colaborador_id, papel\n  HAVING SUM(horas_apontadas) / SUM(horas_disponiveis) < 0.2\n),\nbloqueios AS (\n  SELECT projeto_id, causa_bloqueio, SUM(dias_impacto) AS dias_bloqueio\n  FROM lakehouse_vertice.gold.status_estruturado\n  WHERE data_status >= DATE'2026-07-18' AND causa_bloqueio = 'falta_sre'\n  GROUP BY projeto_id, causa_bloqueio\n)\nSELECT o.colaborador_id, o.papel, o.utilizacao, b.projeto_id AS projeto_bloqueado, b.dias_bloqueio\nFROM ociosos o\nFULL OUTER JOIN bloqueios b ON o.papel = 'sre'"
+        ]
+      }
+    ],
+    "sql_snippets": {
+      "filters": [
+        {
+          "id": "4f101f1f1da4ce2ee8f06de18e2ebe85",
+          "display_name": "Projetos em andamento",
+          "sql": [
+            "projeto_situacao_atual.status = 'em_andamento'"
+          ],
+          "synonyms": [
+            "em andamento",
+            "ativo",
+            "em execução"
+          ]
+        },
+        {
+          "id": "6e993285989628e826d452b57e3f4e4a",
+          "display_name": "Bloqueios reais",
+          "sql": [
+            "status_estruturado.causa_bloqueio NOT IN ('sem_bloqueio', 'nao_reportado')"
+          ],
+          "synonyms": [
+            "bloqueio",
+            "travado",
+            "impedimento"
+          ]
+        },
+        {
+          "id": "71c076399d649ea9d092473ec0f92f7d",
+          "display_name": "Projetos de e-commerce",
+          "sql": [
+            "(lower(projeto_situacao_atual.tipo_projeto) LIKE '%commerce%' OR lower(projeto_situacao_atual.tipo_projeto) LIKE '%checkout%' OR lower(projeto_situacao_atual.tipo_projeto) LIKE '%marketplace%')"
+          ],
+          "synonyms": [
+            "e-commerce",
+            "varejo online",
+            "marketplace",
+            "checkout"
+          ]
+        },
+        {
+          "id": "c77078839c7c1f0a5791c74a2f548540",
+          "display_name": "Projetos melancia",
+          "sql": [
+            "projeto_situacao_atual.melancia"
+          ],
+          "synonyms": [
+            "melancia",
+            "verde por fora vermelho por dentro",
+            "farol verde atrasado"
+          ]
+        }
+      ]
+    },
+    "text_instructions": [
+      {
+        "id": "1cdc5e395898b64888f2d87dbd795304",
+        "content": [
+          "## PURPOSE",
+          "- Responder ao dono e à diretoria da Vértice sobre os 60 projetos (41 em andamento): atrasos, custo, gente parada, fornecedores e riscos do próximo mês.",
+          "- Nunca use current_date(). HOJE = 2026-10-16 (sexta-feira).",
+          "",
+          "## DISAMBIGUATION",
+          "- Janelas temporais: 'Últimos 90 dias' = data_status >= DATE'2026-07-18'. 'Últimas 12 semanas' = semana > DATE'2026-07-24'. 'Próximo mês' = de 17/10/2026 a 16/11/2026.",
+          "- Critério de atraso e criticidade: Atrasado = SPI < 0.9. Situação crítica = SPI ou CPI < 0.8. Situação de atenção = SPI ou CPI < 0.9. Demais são 'ok' ou 'concluído'.",
+          "- Fórmulas EVM: SPI = EV ÷ PV. CPI = EV ÷ AC. EAC = orçamento ÷ CPI. Estouro previsto = EAC - orçamento (apenas quando positivo). Margem projetada = (valor_contrato - EAC) ÷ valor_contrato.",
+          "- Farol do gerente x calculado: farol_calculado é verde (SPI >= 0.95), amarelo (SPI >= 0.90) ou vermelho (abaixo). Projeto melancia: farol_do_gerente = 'verde' E SPI < 0.9 (flag melancia = true).",
+          "- Totais, médias e KPIs agregados da carteira em andamento: use sempre a metric view lakehouse_vertice.gold.mv_projetos com MEASURE(spi), MEASURE(cpi), MEASURE(estouro_previsto), MEASURE(carteira), MEASURE(projetos_em_risco), MEASURE(projetos_criticos), MEASURE(projetos_melancia), MEASURE(projetos).",
+          "- Detalhe, listagens e rankings por projeto: use lakehouse_vertice.gold.projeto_situacao_atual filtrando por status = 'em_andamento'.",
+          "- Código e nome do projeto: o identificador exato é projeto_id (formato PRJ-000, ex: PRJ-011). A coluna projeto traz código e nome concatenados (ex: 'PRJ-011 · Checkout...'). Para filtrar por código, use projeto_id = 'PRJ-000' ou projeto LIKE 'PRJ-000%' ou projeto = 'PRJ-000'.",
+          "- Fato semanal acumulado: PV, EV e AC em fato_projeto_semana são ACUMULADOS: nunca somar semanas. Para consultar a foto de uma semana específica, filtre semana = DATE'YYYY-MM-DD'.",
+          "- Gente parada e ociosidade: utilize gold.utilizacao_pessoa_semana nas últimas 12 semanas (semana > DATE'2026-07-24'). Taxa de utilização = SUM(horas_apontadas) / SUM(horas_disponiveis). Ociosidade/baixa utilização = taxa < 0.2. Para SREs, filtre papel = 'sre'.",
+          "- Fornecedores: silver.entregas_fornecedor (fornecedor não tem tabela na camada gold). Fornecedor que mais atrasa entregas = ORDER BY AVG(prazo_real_dias / prazo_prometido_dias) DESC LIMIT 1. Entregas em atraso hoje = WHERE em_atraso.",
+          "- 'Por que o projeto X atrasou': consulte gold.status_estruturado nos últimos 90 dias (data_status >= DATE'2026-07-18'), excluindo causas 'sem_bloqueio' e 'nao_reportado', agrupando por causa_bloqueio e ordenando por COUNT(*) DESC, mais o SPI do projeto. Se a causa for falta_sre, relacione com os SREs ociosos.",
+          "- 'O que vai dar errado no próximo mês': junte (1) entregas de fornecedores em atraso em silver.entregas_fornecedor; (2) change freeze de fim de ano no varejo (01/11/2026 a 10/01/2027) afetando projetos de e-commerce, checkout ou marketplace; (3) no modelo preditivo de estouro (gold.score_estouro_30d), projetos atualmente com situacao = 'ok' mas com faixa_risco 'alto' ou 'medio' na data_referencia mais recente, indicando prob_estouro_30d e principais_fatores.",
+          "- E-commerce: projetos com LOWER(tipo_projeto) LIKE '%commerce%' OR LOWER(tipo_projeto) LIKE '%checkout%' OR LOWER(tipo_projeto) LIKE '%marketplace%'.",
+          "- 'Quais clientes': use sempre DISTINCT cliente para retornar cada cliente uma única vez.",
+          "",
+          "## DATA QUALITY NOTES",
+          "- Valores categóricos estão padronizados em minúsculas e sem acentos: ferramentas ('excel', 'clickup', 'msproject'), situações ('crítico', 'atenção', 'ok', 'concluído'), faixas de risco ('alto', 'medio', 'baixo').",
+          "- Estornos financeiros já estão abatidos nos custos reais.",
+          "",
+          "## CONSTRAINTS",
+          "- Use apenas as tabelas e a metric view catalogadas no espaço.",
+          "- Responda com base estrita nos dados de 16/10/2026 sem extrapolações não fundamentadas.",
+          "",
+          "## Instructions you must follow when providing summaries",
+          "- Apresente valores monetários em R$ e índices (SPI, CPI) com duas casas decimais.",
+          "- Cite sempre a data de referência (16/10/2026) nos resumos executivos.",
+          "- Se a resposta exigir dados não existentes nestas tabelas, declare a limitação com clareza em vez de inventar."
+        ]
+      }
+    ]
+  }
+}

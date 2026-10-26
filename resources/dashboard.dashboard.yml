@@ -1,0 +1,12 @@
+# Recurso de Dashboard AI/BI do Portfólio da Vértice Tecnologia
+# Lê as tabelas da camada Gold (projeto_situacao_atual, score_estouro_30d, utilizacao_pessoa_semana, status_estruturado)
+# e entregas de consultoria da Silver (silver.entregas_fornecedor).
+
+resources:
+  dashboards:
+    dashboard_portfolio:
+      display_name: "Projeto Farol · Portfólio"
+      file_path: ../resources/dashboard-portfolio.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: gold

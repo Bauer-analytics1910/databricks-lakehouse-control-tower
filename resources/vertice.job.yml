@@ -1,0 +1,126 @@
+# Job do projeto Farol: ingestão da bronze → conferência → medalhão → testes/IA → ML (features, modelo, score).
+# As chaves do data lake chegam como ${var.…} (valor em variable-overrides.json).
+#
+# DAG de execução:
+#   ingestao_feriados + ingestao_data_lake
+#         ↓
+#   conferencia_bronze
+#         ↓
+#   medalhao (silver + gold)
+#      ↙             ↘
+#   testes_de_qualidade   status_com_ia
+#      ↙       ↘     ↙       ↘
+#   ml_features   metricas_governadas
+
+#        ↓
+#    ml_modelo
+#        ↓
+#     ml_score
+
+resources:
+  jobs:
+    vertice_farol:
+      name: vertice_farol
+      description: Projeto Farol da Vértice Tecnologia. Ingestão do data lake, conferência, medalhão, testes, IA nos status semanais, e pipeline preditivo de ML de estouro de 30 dias.
+      tasks:
+        - task_key: ingestao_feriados
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../src/ingestao/01_ingestao_api.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: ingestao_data_lake
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            base_parameters:
+              AWS_ACCESS_KEY_ID: ${var.s3_access_key_id}
+              AWS_DEFAULT_REGION: us-east-2
+              AWS_SECRET_ACCESS_KEY: ${var.s3_secret_access_key}
+              S3_ENDPOINT: https://voplgqqrdmwlnbdbgwmf.storage.supabase.co/storage/v1/s3
+            notebook_path: ../src/ingestao/02_ingestao_boto3.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+        # Confere as 9 tabelas da bronze contra a contagem esperada (seed 42).
+        - task_key: conferencia_bronze
+          depends_on:
+            - task_key: ingestao_feriados
+            - task_key: ingestao_data_lake
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/conferencia/00-conferencia-bronze.sql
+        # Pipeline Lakeflow: bronze → silver → gold.
+        - task_key: medalhao
+          depends_on:
+            - task_key: conferencia_bronze
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.vertice_medalhao.id}
+        # Testes de qualidade sobre as camadas Silver e Gold (10 testes com raise_error).
+        - task_key: testes_de_qualidade
+          depends_on:
+            - task_key: medalhao
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/testes/testes.sql
+        # 4. Status semanal com IA (ai_classify + ai_extract)
+        - task_key: status_com_ia
+          depends_on:
+            - task_key: medalhao
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/ia/status_estruturado.sql
+        # 5. Métricas governadas: a metric view gold.mv_projetos (fórmula de cada KPI num lugar só)
+        - task_key: metricas_governadas
+          depends_on:
+            - task_key: testes_de_qualidade
+            - task_key: status_com_ia
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/metricas/metricas.sql
+        # 5. Features de Machine Learning (uma linha por projeto/semana, histórico retroativo)
+        - task_key: ml_features
+          depends_on:
+            - task_key: testes_de_qualidade
+            - task_key: status_com_ia
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/ml/01-features.sql
+        # 6. Modelo preditivo de estouro de 30 dias (MLflow + Unity Catalog @prod)
+        - task_key: ml_modelo
+          depends_on:
+            - task_key: ml_features
+          notebook_task:
+            base_parameters:
+              catalog: ${var.catalog}
+            notebook_path: ../src/ml/02-modelo.py
+            source: WORKSPACE
+        # 7. Score em lote com probabilidade, ranking e motivos
+        - task_key: ml_score
+          depends_on:
+            - task_key: ml_modelo
+          notebook_task:
+            base_parameters:
+              catalog: ${var.catalog}
+            notebook_path: ../src/ml/03-score.py
+            source: WORKSPACE
+      email_notifications:
+        no_alert_for_skipped_runs: false
+      max_concurrent_runs: 1
+      performance_target: PERFORMANCE_OPTIMIZED
+      queue:
+        enabled: true
+      schedule:
+        pause_status: PAUSED
+        quartz_cron_expression: 0 0 6 ? * MON
+        timezone_id: America/Sao_Paulo
+      timeout_seconds: 0
+      webhook_notifications: {}
