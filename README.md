@@ -91,7 +91,7 @@ flowchart TD
 
 ## 3. Pipeline de Dados & Orquestração (`vertice_farol`)
 
-Toda a jornada de dados é orquestrada pelo Databricks Workflow **`vertice_farol`** ([`resources/vertice.job.yml`](resources/vertice.job.yml)), composto por **10 tarefas encadeadas em DAG** com execução agendada às segundas-feiras (`0 0 6 ? * MON`, `America/Sao_Paulo`):
+Todo o pipeline dos dados é orquestrado pelo Databricks Workflow **`vertice_farol`** ([`resources/vertice.job.yml`](resources/vertice.job.yml)), composto por **10 tarefas encadeadas em DAG** com execução agendada às segundas-feiras (`0 0 6 ? * MON`, `America/Sao_Paulo`):
 
 ![Pipeline de Dados e Orquestração no Databricks Workflows](docs/assets/01-pipeline-orquestracao.png)
 
